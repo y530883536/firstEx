@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 void aaa(char *originInst) {
 //void aaa(char originInst[]){
@@ -137,47 +138,278 @@ void aaa(char *originInst) {
         buf[len-1] = '\0';  *//*去掉换行符*//*
         printf("%s\n",buf);
     }*/
-
-
-    /*int prevX[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
-    int prevY[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
-    int currX[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
-    int currY[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
-
-    prevX[0] = 100;
-    prevX[1] = 200;
-    prevX[2] = 300;
-    prevX[3] = 400;
-
-    prevY[0] = 100;
-    prevY[1] = 200;
-    prevY[2] = 300;
-    prevY[3] = 400;
-
-    currX[0] = 105;
-    currX[1] = 305;
-
-    currY[0] = 105;
-    currY[1] = 305;
-
-    //输出结果是40
-    //printf("%d\n", sizeof(prevX));
-    //printf("%d\n", sizeof(currX));
-    for(int i=0;i<10;i++) {
-        //如果prevX和prevY都是-1说明这根手指没用到
-        if(prevX[i] == -1 && prevY[i] == -1) {
-            continue;
-        }
-        for(int j=0;j<10;j++) {
-
-        }
-    }*/
-    printf("aassddrr");
 }
 
+//最多同时识别10根手指
+int prevSlotIdArray[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+int prevArrayX[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+int prevArrayY[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+//记录上次指令的手指数量
+int lastTouchNum = 0;
 
+//清楚数组内容（将数组里的所有值重新赋值成-1）,目前是写死数组的长度为10
+void clearArray(int array[]) {
+    for(int i=0;i<10;i++) {
+        array[i] = -1;
+    }
+}
+
+//输出数组内容
+void printArray(char *name,int array[]) {
+    printf("%s:",name);
+    for(int i=0;i<10;i++) {
+        printf("%d,",array[i]);
+    }
+    printf("\n");
+}
+
+//触屏类型：0（按下）  1（抬起）  2（移动）
+void bbb(int xPointArray[],int yPointArray[],int touchNum,int type) {
+    int currSlotIdArray[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+    int currArrayX[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+    int currArrayY[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+    //按下事件
+    if(type == 0) {
+        for(int i=0;i<touchNum;i++) {
+            prevSlotIdArray[i] = i;
+            prevArrayX[i] = xPointArray[i];
+            prevArrayY[i] = yPointArray[i];
+            currSlotIdArray[i] = i;
+            currArrayX[i] = xPointArray[i];
+            currArrayY[i] = yPointArray[i];
+        }
+    }
+    //抬起事件
+    if(type == 1) {
+        for(int i=0;i<10;i++) {
+            prevSlotIdArray[i] = -1;
+            prevArrayX[i] = -1;
+            prevArrayY[i] = -1;
+        }
+    }
+    //移动事件
+    if(type == 2) {
+        //本次的手指触摸数量<=上次的手指触摸数量
+        if(touchNum <= lastTouchNum) {
+            //最外层循环是本次的指令坐标
+            for(int i=0;i<touchNum;i++) {
+                int isFirst = 1;
+                int lastDifference = -1;
+                int surviveSlotId = -1;
+                //这一层的循环是上次的指令坐标
+                for(int j=0;j<10;j++) {
+                    if(prevSlotIdArray[j] == -1) {
+                        continue;
+                    }
+                    int xDifference = abs(prevArrayX[j] - xPointArray[i]);
+                    int yDifference = abs(prevArrayY[j] - yPointArray[i]);
+                    int sumDifference = xDifference + yDifference;
+                    if(isFirst == 1 || sumDifference <= lastDifference) {
+                        lastDifference = sumDifference;
+                        surviveSlotId = prevSlotIdArray[j];
+                        isFirst = 0;
+                    }
+                }
+                currSlotIdArray[surviveSlotId] = prevSlotIdArray[surviveSlotId];
+                currArrayX[surviveSlotId] = xPointArray[i];
+                currArrayY[surviveSlotId] = yPointArray[i];
+            }
+            for(int i=0;i<10;i++) {
+                //上次指令有坐标，这次指令没有坐标，那么就是手指离开了
+                if(prevSlotIdArray[i] != -1 && currSlotIdArray[i] == -1) {
+                    //todo 这里到了具体的逻辑是进行离开了的手指事件触发
+                    printf("手指%d,%d离开了",prevArrayX[i],prevArrayY[i]);
+                }
+            }
+            //最后把记录本次的手指指令
+            for(int i=0;i<10;i++) {
+                prevSlotIdArray[i] = currSlotIdArray[i];
+                prevArrayX[i] = currArrayX[i];
+                prevArrayY[i] = currArrayY[i];
+            }
+        }
+        //本次的手指触摸数量>上次的手指触摸数量
+        if(touchNum > lastTouchNum) {
+            int isFirst = 1;
+            int lastDifference = -1;
+            for(int i=0;i<10;i++) {
+               if(prevSlotIdArray[i] == -1) {
+                   continue;
+               }
+               currSlotIdArray[i] = prevSlotIdArray[i];
+               for(int j=0;j<touchNum;j++) {
+                   int xDifference = abs(prevArrayX[i] - xPointArray[j]);
+                   int yDifference = abs(prevArrayY[i] - yPointArray[j]);
+                   int sumDifference = xDifference + yDifference;
+                   if(isFirst == 1 || sumDifference <= lastDifference) {
+                       lastDifference = sumDifference;
+                       currArrayX[i] = xPointArray[j];
+                       currArrayY[i] = yPointArray[j];
+                       isFirst = 0;
+                   }
+               }
+            }
+            for(int k=0;k<10;k++) {
+                if(currSlotIdArray[k] == -1) {
+                    continue;
+                }
+                int currX = currArrayX[k];
+                int currY = currArrayY[k];
+                for(int l=0;l<touchNum;l++) {
+                    if(xPointArray[l] == currX && yPointArray[l] == currY) {
+                        xPointArray[l] = -1;
+                        yPointArray[l] = -1;
+                        break;
+                    }
+                }
+            }
+            printArray("新增加的手指坐标x:",xPointArray);
+            printArray("新增加的手指坐标y:",yPointArray);
+            for(int m=0;m<touchNum;m++) {
+                if(xPointArray[m] == -1 && yPointArray[m] == -1) {
+                    continue;
+                }
+                for(int n=0;n<10;n++) {
+                    if(currSlotIdArray[n] == -1) {
+                        //todo 这里是新增加手指的事件了
+                        currSlotIdArray[n] = n;
+                        currArrayX[n] = xPointArray[m];
+                        currArrayY[n] = yPointArray[m];
+                        break;
+                    }
+                }
+            }
+            //最后把记录本次的手指指令
+            for(int i=0;i<10;i++) {
+                prevSlotIdArray[i] = currSlotIdArray[i];
+                prevArrayX[i] = currArrayX[i];
+                prevArrayY[i] = currArrayY[i];
+            }
+        }
+    }
+    //记录这次的touchNum
+    lastTouchNum = touchNum;
+
+    //输出三个数组里的值
+    printArray("prevSlotIdArray:",prevSlotIdArray);
+    printArray("currArrayX:",currArrayX);
+    printArray("currArrayY:",currArrayY);
+    printf("\n\n");
+}
+
+void testInstruction(){
+    int xPointArray[10] = {};
+    int yPointArray[10] = {};
+
+    //bbb(100,100,-1,-1,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 100;
+    yPointArray[0] = 101;
+    bbb(xPointArray,yPointArray,1,0);
+
+    //bbb(101,101,-1,-1,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 101;
+    yPointArray[0] = 102;
+    bbb(xPointArray,yPointArray,1,2);
+
+    //bbb(102,102,200,200,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 102;
+    yPointArray[0] = 103;
+    xPointArray[1] = 200;
+    yPointArray[1] = 201;
+    bbb(xPointArray,yPointArray,2,2);
+
+    //bbb(103,103,201,201,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 103;
+    yPointArray[0] = 104;
+    xPointArray[1] = 201;
+    yPointArray[1] = 202;
+    bbb(xPointArray,yPointArray,2,2);
+
+    //bbb(104,104,202,202,300,300);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 104;
+    yPointArray[0] = 105;
+    xPointArray[1] = 202;
+    yPointArray[1] = 203;
+    xPointArray[2] = 300;
+    yPointArray[2] = 301;
+    bbb(xPointArray,yPointArray,3,2);
+
+    //bbb(105,105,203,203,301,301);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 105;
+    yPointArray[0] = 106;
+    xPointArray[1] = 203;
+    yPointArray[1] = 204;
+    xPointArray[2] = 301;
+    yPointArray[2] = 302;
+    bbb(xPointArray,yPointArray,3,2);
+
+    //bbb(105,105,302,302,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 105;
+    yPointArray[0] = 106;
+    xPointArray[1] = 302;
+    yPointArray[1] = 303;
+    bbb(xPointArray,yPointArray,2,2);
+
+    //bbb(303,303,-1,-1,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 303;
+    yPointArray[0] = 304;
+    bbb(xPointArray,yPointArray,1,2);
+
+    //bbb(555,555,303,303,-1,-1);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 555;
+    yPointArray[0] = 556;
+    xPointArray[1] = 303;
+    yPointArray[1] = 304;
+    bbb(xPointArray,yPointArray,2,2);
+
+    //bbb(556,556,304,304,888,888);
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    xPointArray[0] = 556;
+    yPointArray[0] = 557;
+    xPointArray[1] = 304;
+    yPointArray[1] = 305;
+    xPointArray[2] = 888;
+    yPointArray[2] = 889;
+    bbb(xPointArray,yPointArray,3,2);
+    
+    clearArray(xPointArray);
+    clearArray(yPointArray);
+    bbb(xPointArray,yPointArray,0,1);
+}
 
 int main() {
-    aaa("MULTI:1:0:314:61011");
+    printf("sad\n");
+    testInstruction();
+
+    /*int test[10] = {};
+    printArray("test1",test);
+    clearArray(test);
+    printArray("test2",test);*/
+
+    /*int a = 11;
+    int b = -12;
+    printf("%d\n",abs(a));
+    printf("%d\n",abs(b));
+    printf("%d\n",b);*/
+
     return 0;
 }
