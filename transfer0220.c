@@ -210,6 +210,8 @@ void fingerUp() {
 }
 
 void changeToAndroidInstruct(char *originInst){
+    //200000us是200ms也就是0.2s
+    //usleep(20000);
 
     char temp[100];
     for(int i=0;i<100;i++) {
